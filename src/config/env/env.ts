@@ -19,6 +19,14 @@ const envSchema = z.object({
             .regex(/^[0-9]+$/)
             .transform((value) => parseInt(value)),
     ]),
+    API_KEY: z.string(),
+    CALL_INTERVAL: z.union([
+        z.undefined(),
+        z
+            .string()
+            .regex(/^[0-9]+$/)
+            .transform((value) => parseInt(value)),
+    ]),
 });
 
 const env = envSchema.parse({
@@ -29,6 +37,8 @@ const env = envSchema.parse({
     POSTGRES_PASSWORD: process.env.POSTGRES_PASSWORD,
     NODE_ENV: process.env.NODE_ENV,
     APP_PORT: process.env.APP_PORT,
+    API_KEY: process.env.API_KEY,
+    CALL_INTERVAL: process.env.CALL_INTERVAL
 });
 
 export default env;
