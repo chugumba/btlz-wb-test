@@ -34,7 +34,7 @@ async function callBoxesApi() : Promise<void> {
             // Записываем данные в БД
             await PostgresUpdate (nextBos.dtNextBox, nextBos.dtTillMax, nextBos.warehouseList, curDate)
             // Перегружаем в Google Таблицы
-            await UploadToGS('credentials.json','1bFnND4jXXAF46INqNIwD1MfVfYb3TFzCNQ7mLbchobQ', await GetAllSpreadSheets());
+            await UploadToGS('credentials.json', await GetAllSpreadSheets(), curDate);
         }
     } catch (error) {
         if (axios.isAxiosError(error)) {
@@ -44,6 +44,8 @@ async function callBoxesApi() : Promise<void> {
         } else {
             console.error('Неизвестная ошибка:', error);
         }
+    } finally {
+        console.log("Сделан запрос")
     }
 };
 // Обращаемся к API при старте приложения
