@@ -1,6 +1,7 @@
 import knex, { migrate, seed } from "#postgres/knex.js";
 import env from "#config/env/env.js";
 import axios from 'axios';
+import {UploadToGS} from "./utils/tablesService.js"
 // Миграции
 await migrate.latest();
 // Сиды
@@ -16,15 +17,19 @@ interface WarehouseEx {
     boxStorageLiter: string;
     warehouseName: string;
 }
-
 // Интерфейс для набора тарифов для коробов, сгрупированных по складам
 interface ResponseData {
     dtNextBox:string;
     dtTillMax:string;
     warehouseList: Array<WarehouseEx>;
 } 
-
-async function postgresUpdate(nextBox:string, tillMax:string, warehouseList:Array<WarehouseEx>, curDate:string) {
+// Полуаем все ID таблиц
+async function getAllSpreadSheets() : Promise<Array<string>>  {
+    const queryRes : Array<string> = (await knex("spreadsheets")).map(sheetId => sheetId.spreadsheet_id); 
+    return queryRes
+}
+// Запись данных из API в PG
+async function postgresUpdate(nextBox:string, tillMax:string, warehouseList:Array<WarehouseEx>, curDate:string) : Promise<void> {
     try {
         // Создаём объект для вставки в таблицу
         const insertData = warehouseList.map(data=>({
@@ -45,16 +50,14 @@ async function postgresUpdate(nextBox:string, tillMax:string, warehouseList:Arra
             if(updateExisting === 0) {
                 await knex("boxes")
                 .insert({...box})
-                console.log("Вставляем")
             }
         }   
     } catch (error) {
-        return new Error("Ошибка при обновлении данных!")
+        throw new Error("Ошибка при обновлении данных!")
     }
 }
-
 // Обращение к API "Тарифы коробов"
-const callBoxesApi = async () => {
+async function callBoxesApi() : Promise<void> {
     try {
         // Получаем текущую дату
         const curDate:string = (new Date()).toISOString().split('T')[0];
@@ -76,6 +79,8 @@ const callBoxesApi = async () => {
         } else {
             // Записываем данные в БД
             await postgresUpdate (nextBos.dtNextBox, nextBos.dtTillMax, nextBos.warehouseList, curDate)
+            // Перегружаем в Google Таблицы
+            await UploadToGS('credentials.json','1fORraLqIA7HByN_mQtUKCZgKRpZ-pRsE8VxYn4io_kQ', await getAllSpreadSheets());
         }
     } catch (error) {
         if (axios.isAxiosError(error)) {
@@ -87,10 +92,8 @@ const callBoxesApi = async () => {
         }
     }
 };
-
 // Обращаемся к API при старте приложения
 callBoxesApi();
-
 // Определяем обращение к API с интервалом равным переменной среды
 setInterval(() => {
     console.log('Вызываем API...');
