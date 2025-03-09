@@ -7,19 +7,38 @@ await migrate.latest();
 await seed.run();
 // Успешная миграция и сиды
 console.log("All migrations and seeds have been run");
+// Интерфейс для тарифа для коробов по складу 
+interface warehouseEx {
+    boxDeliveryAndStorageExpr:string,
+    boxDeliveryBase:string,
+    boxDeliveryLiter:string,
+    boxStorageBase:string,
+    boxStorageLiter:string,
+    warehouseName:string
+}
+// Интерфейс для набора тарифов для коробов, сгрупированных по складам
+interface responseData {
+    dtNextBox:string,
+    dtTillMax:string,
+    warehouseList: Array<warehouseEx>
+} 
 // Обращение к API "Тарифы коробов"
 const callBoxesApi = async () => {
     try {
-      const response = await axios.get('https://common-api.wildberries.ru/api/v1/tariffs/box', {
+        // Получаем текущую дату
+        const curDate:string = (new Date()).toISOString().split('T')[0];
+        const response = await axios.get('https://common-api.wildberries.ru/api/v1/tariffs/box', {
         headers: {
-          'Authorization': env.API_KEY,
-          'Content-Type': 'application/json'
+            'Authorization': env.API_KEY,
+            'Content-Type': 'application/json'
         },
         params: {
-            date: "2025-03-08"
+            date: curDate
         }
-      });
-      console.log('Ответ:', response.data);
+        });
+        const nextBos:responseData = response.data.response.data;
+
+        
     } catch (error) {
         if (axios.isAxiosError(error)) {
             console.error('Ошибка Axios:', error.response?.data || error.message);
@@ -30,6 +49,10 @@ const callBoxesApi = async () => {
         }
     }
 };
+
+// Обращаемся к API при старте приложения
+callBoxesApi();
+
 // Определяем обращение к API с интервалом равным переменной среды
 setInterval(() => {
     console.log('Вызываем API...');
