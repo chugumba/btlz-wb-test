@@ -8,20 +8,51 @@ await seed.run();
 // Успешная миграция и сиды
 console.log("All migrations and seeds have been run");
 // Интерфейс для тарифа для коробов по складу 
-interface warehouseEx {
-    boxDeliveryAndStorageExpr:string,
-    boxDeliveryBase:string,
-    boxDeliveryLiter:string,
-    boxStorageBase:string,
-    boxStorageLiter:string,
-    warehouseName:string
+interface WarehouseEx {
+    boxDeliveryAndStorageExpr: string;
+    boxDeliveryBase: string;
+    boxDeliveryLiter: string;
+    boxStorageBase: string;
+    boxStorageLiter: string;
+    warehouseName: string;
 }
+
 // Интерфейс для набора тарифов для коробов, сгрупированных по складам
-interface responseData {
-    dtNextBox:string,
-    dtTillMax:string,
-    warehouseList: Array<warehouseEx>
+interface ResponseData {
+    dtNextBox:string;
+    dtTillMax:string;
+    warehouseList: Array<WarehouseEx>;
 } 
+
+async function postgresUpdate(nextBox:string, tillMax:string, warehouseList:Array<WarehouseEx>, curDate:string) {
+    try {
+        // Создаём объект для вставки в таблицу
+        const insertData = warehouseList.map(data=>({
+            dtNextBox: nextBox === "" ? null : nextBox,
+            dtTillMax: tillMax === "" ? null : tillMax,
+            ...data, 
+            dtActualization:curDate === "" ? null : curDate
+        }))
+        // Обновляем/вставляем записи
+        for(const box of insertData) {
+            const updateExisting = await knex("boxes")
+            .where({ 
+                dtActualization: box.dtActualization,
+                warehouseName: box.warehouseName
+            })
+            .update({...box});
+            // Если нет обновлённых записей, вставляем
+            if(updateExisting === 0) {
+                await knex("boxes")
+                .insert({...box})
+                console.log("Вставляем")
+            }
+        }   
+    } catch (error) {
+        return new Error("Ошибка при обновлении данных!")
+    }
+}
+
 // Обращение к API "Тарифы коробов"
 const callBoxesApi = async () => {
     try {
@@ -36,9 +67,16 @@ const callBoxesApi = async () => {
             date: curDate
         }
         });
-        const nextBos:responseData = response.data.response.data;
-
-        
+        // Читаем данные
+        const nextBos: ResponseData | undefined = response.data?.response?.data;
+        // Если некорректный формат, выходим из функции
+        if (!nextBos) {
+            console.error('Ошибка при получении данных!');
+            return;
+        } else {
+            // Записываем данные в БД
+            await postgresUpdate (nextBos.dtNextBox, nextBos.dtTillMax, nextBos.warehouseList, curDate)
+        }
     } catch (error) {
         if (axios.isAxiosError(error)) {
             console.error('Ошибка Axios:', error.response?.data || error.message);
