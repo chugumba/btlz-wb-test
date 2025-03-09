@@ -4,12 +4,18 @@ import axios from 'axios';
 import {UploadToGS} from "#utils/tablesService.js"
 import {GetAllSpreadSheets, PostgresUpdate} from "#utils/postgresService.js"
 import { ResponseData } from "#utils/interfaces.js";
-// Миграции
-await migrate.latest();
-// Сиды
-await seed.run();
-// Успешная миграция и сиды
-console.log("All migrations and seeds have been run");
+
+try {
+    // Миграции
+    await migrate.latest();
+    // Сиды
+    await seed.run();
+    // Успешная миграция и сиды
+    console.log("All migrations and seeds have been run");
+} catch (error) {
+    console.error("Ошибка при выполнении миграции или сидов:", error);
+    process.exit(1);
+}
 // Обращение к API "Тарифы коробов"
 async function callBoxesApi() : Promise<void> {
     try {
