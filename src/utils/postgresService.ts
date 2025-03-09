@@ -33,3 +33,9 @@ export async function PostgresUpdate(nextBox:string, tillMax:string, warehouseLi
         throw new Error("Ошибка при обновлении данных!")
     }
 }
+
+export async function DataToExport(curDate:string) : Promise <Array<any>> {
+    return await knex("boxes")
+    .where({dtActualization: curDate})
+    .orderBy("boxDeliveryAndStorageExpr")
+}
