@@ -35,7 +35,17 @@ export async function PostgresUpdate(nextBox:string, tillMax:string, warehouseLi
 }
 
 export async function DataToExport(curDate:string) : Promise <Array<any>> {
-    return await knex("boxes").select(['dtNextBox', 'dtTillMax', 'boxDeliveryAndStorageExpr', 'boxDeliveryBase', 'boxDeliveryLiter', 'boxStorageBase', 'boxStorageLiter', 'warehouseName'])
+    return await knex("boxes")
+    .select([
+        knex.raw(`TO_CHAR("dtNextBox", 'YYYY-MM-DD') as "dtNextBox"`),
+        knex.raw(`TO_CHAR("dtTillMax", 'YYYY-MM-DD') as "dtTillMax"`),
+        'boxDeliveryAndStorageExpr',
+        'boxDeliveryBase',
+        'boxDeliveryLiter',
+        'boxStorageBase',
+        'boxStorageLiter',
+        'warehouseName',
+    ])
     .where({dtActualization: curDate})
     .orderByRaw('CAST("boxDeliveryAndStorageExpr" AS FLOAT)');
 }
