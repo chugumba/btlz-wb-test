@@ -1,61 +1,15 @@
-import knex, { migrate, seed } from "#postgres/knex.js";
+import { migrate, seed } from "#postgres/knex.js";
 import env from "#config/env/env.js";
 import axios from 'axios';
-import {UploadToGS} from "./utils/tablesService.js"
+import {UploadToGS} from "#utils/tablesService.js"
+import {GetAllSpreadSheets, PostgresUpdate} from "#utils/postgresService.js"
+import { ResponseData } from "#utils/interfaces.js";
 // Миграции
 await migrate.latest();
 // Сиды
 await seed.run();
 // Успешная миграция и сиды
 console.log("All migrations and seeds have been run");
-// Интерфейс для тарифа для коробов по складу 
-interface WarehouseEx {
-    boxDeliveryAndStorageExpr: string;
-    boxDeliveryBase: string;
-    boxDeliveryLiter: string;
-    boxStorageBase: string;
-    boxStorageLiter: string;
-    warehouseName: string;
-}
-// Интерфейс для набора тарифов для коробов, сгрупированных по складам
-interface ResponseData {
-    dtNextBox:string;
-    dtTillMax:string;
-    warehouseList: Array<WarehouseEx>;
-} 
-// Полуаем все ID таблиц
-async function getAllSpreadSheets() : Promise<Array<string>>  {
-    const queryRes : Array<string> = (await knex("spreadsheets")).map(sheetId => sheetId.spreadsheet_id); 
-    return queryRes
-}
-// Запись данных из API в PG
-async function postgresUpdate(nextBox:string, tillMax:string, warehouseList:Array<WarehouseEx>, curDate:string) : Promise<void> {
-    try {
-        // Создаём объект для вставки в таблицу
-        const insertData = warehouseList.map(data=>({
-            dtNextBox: nextBox === "" ? null : nextBox,
-            dtTillMax: tillMax === "" ? null : tillMax,
-            ...data, 
-            dtActualization:curDate === "" ? null : curDate
-        }))
-        // Обновляем/вставляем записи
-        for(const box of insertData) {
-            const updateExisting = await knex("boxes")
-            .where({ 
-                dtActualization: box.dtActualization,
-                warehouseName: box.warehouseName
-            })
-            .update({...box});
-            // Если нет обновлённых записей, вставляем
-            if(updateExisting === 0) {
-                await knex("boxes")
-                .insert({...box})
-            }
-        }   
-    } catch (error) {
-        throw new Error("Ошибка при обновлении данных!")
-    }
-}
 // Обращение к API "Тарифы коробов"
 async function callBoxesApi() : Promise<void> {
     try {
@@ -78,9 +32,9 @@ async function callBoxesApi() : Promise<void> {
             return;
         } else {
             // Записываем данные в БД
-            await postgresUpdate (nextBos.dtNextBox, nextBos.dtTillMax, nextBos.warehouseList, curDate)
+            await PostgresUpdate (nextBos.dtNextBox, nextBos.dtTillMax, nextBos.warehouseList, curDate)
             // Перегружаем в Google Таблицы
-            await UploadToGS('credentials.json','1fORraLqIA7HByN_mQtUKCZgKRpZ-pRsE8VxYn4io_kQ', await getAllSpreadSheets());
+            await UploadToGS('credentials.json','1bFnND4jXXAF46INqNIwD1MfVfYb3TFzCNQ7mLbchobQ', await GetAllSpreadSheets());
         }
     } catch (error) {
         if (axios.isAxiosError(error)) {
